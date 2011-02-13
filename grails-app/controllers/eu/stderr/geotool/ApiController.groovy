@@ -10,10 +10,10 @@ class ApiController {
         def ip = params.id ? params.id : request.getRemoteAddr()
         if(isValidIp(ip)) {
             long aton = getAtonFromIp(ip)
-            def geoResponse = Ip.findAll("FROM Ip as t1 WHERE ? BETWEEN t1.start AND t1.end", [aton])?.first()
+            def geoCountryInstance = Ip.findAll("FROM Ip as t1 WHERE ? BETWEEN t1.start AND t1.end", [aton])
 
-            if(geoResponse) {
-                render(view: "country.xml", contentType: "text/xml", encoding: "UTF-8", model: [status:"OK", ip:ip, geoResponse:geoResponse])
+            if(geoCountryInstance) {
+                render(view: "country.xml", contentType: "text/xml", encoding: "UTF-8", model: [status:"OK", ip:ip, geoCountryInstance: geoCountryInstance?.first()])
             } else {
                 render(view: "response.xml.error", contentType: "text/xml", encoding: "UTF-8", model: [status:"IP NOT FOUND IN DATABASE, SORRY!", ip:ip])
             }
@@ -27,9 +27,9 @@ class ApiController {
         if(isValidIp(ip)) {
             long aton = getAtonFromIp(ip)
             long geo = aton - (aton % 65536)
-            def geoCityInstance = CityBlock.findAll("FROM CityBlock as t1 WHERE t1.indexGeo = ? AND ? BETWEEN t1.start AND t1.end", [geo, aton])?.first()?.cityLocation
+            def geoCityInstance = CityBlock.findAll("FROM CityBlock as t1 WHERE t1.indexGeo = ? AND ? BETWEEN t1.start AND t1.end", [geo, aton])
             if(geoCityInstance) {
-                render(view: "city.xml", contentType: "text/xml", encoding: "UTF-8", model: [status:"OK", ip:ip, geoCityInstance:geoCityInstance])
+                render(view: "city.xml", contentType: "text/xml", encoding: "UTF-8", model: [status:"OK", ip:ip, geoCityInstance:geoCityInstance?.first().cityLocation])
             } else {
                 render(view: "response.xml.error", contentType: "text/xml", encoding: "UTF-8", model: [status:"IP NOT FOUND IN DATABASE, SORRY!", ip:ip])
             }
