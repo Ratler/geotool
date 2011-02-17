@@ -1,20 +1,18 @@
 package eu.stderr.geotool
+import com.vividsolutions.jts.geom.Polygon
+import org.hibernatespatial.GeometryUserType
 
 class Ip {
+    Polygon polygon
+    Country country
     Long start
     Long end
-    Country country
 
     static mapping = {
-        start sqlType: 'INT(10) UNSIGNED'
-        end sqlType:'INT(10) UNSIGNED'
+        version false
+        polygon type: GeometryUserType
     }
-
-    static belongsTo = Country
-
     static constraints = {
-        start(blank: false)
-        end(blank: false)
-        country(blank: false)
     }
+
 }

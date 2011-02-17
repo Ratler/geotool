@@ -1,6 +1,10 @@
 package eu.stderr.geotool
 
+import groovy.sql.Sql
+
 class ApiController {
+
+    def dataSource
 
     def index = {
         redirect(action: "country", params: params)
@@ -10,7 +14,9 @@ class ApiController {
         def ip = params.id ? params.id : request.getRemoteAddr()
         if(isValidIp(ip)) {
             long aton = getAtonFromIp(ip)
-            def geoCountryInstance = Ip.findAll("FROM Ip as t1 WHERE ? BETWEEN t1.start AND t1.end", [aton])
+
+            Sql sql = new Sql(dataSource)
+            def geoCountryInstance = sql.rows("SELECT * FROM ip t1 JOIN country t2 ON t1.country_id = t2.id WHERE MBRCONTAINS(t1.polygon, POINTFROMWKB(POINT(?, 0)))", [aton])
 
             if(geoCountryInstance) {
                 render(view: "country.xml", contentType: "text/xml", encoding: "UTF-8", model: [status:"OK", ip:ip, geoCountryInstance: geoCountryInstance?.first()])
