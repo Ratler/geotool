@@ -8,14 +8,17 @@
 usage() {
   cat <<EOF
 
-Usage: geotool_populate_db.sh [options] -b <GeoLiteCity-Blocks.csv> -l <GeoLiteCity-Location.csv> -c <GeoIPCountryWhois.csv> <database>
+Usage: geotool_populate_db.sh [options] -b <file> -l <file> -c <file> <database>
 
-Options:
- -u <mysql user>                          MySQL username
- -p <mysql pass>                          MySQL password
+Required options:
  -b </path/to/GeoLiteCity-Blocks.csv>     Path to GeoLiteCity-Blocks CSV file
  -l </path/to/GeoLiteCity-Location.csv>   Path to GeoLiteCity-Location CSV file
  -c </path/to/GeoIPCountryWhois.csv>      Path to GeoIPCountryWhois CSV file
+
+Options:
+ -u <mysql user>   MySQL username
+ -p <mysql pass>   MySQL password
+ -h                This help page
 EOF
 }
 
@@ -41,7 +44,7 @@ CREATE TABLE \`csvcountry\` (
   \`end\` int(10) unsigned NOT NULL,
   \`cc\` char(2) NOT NULL,
   \`cn\` varchar(50) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 LOCK TABLES \`csvcountry\` WRITE;
@@ -54,7 +57,7 @@ DROP TABLE IF EXISTS \`city_location\`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE \`city_location\` (
     \`id\` int(10) unsigned NOT NULL,
-    \`country_id\` bigint(20) NOT NULL,
+    \`country_id\` int(10) NOT NULL,
 		\`region\` char(2) NOT NULL,
 		\`city\` varchar(50),
 		\`postal_code\` char(5) NOT NULL,
@@ -63,7 +66,7 @@ CREATE TABLE \`city_location\` (
 		\`metro_code\` integer,
 		\`area_code\` integer,
 		PRIMARY KEY (id)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 LOCK TABLES \`city_location\` WRITE;
@@ -85,7 +88,7 @@ CREATE TABLE \`csvcity_location\` (
 		\`metroCode\` integer,
 		\`areaCode\` integer,
 		PRIMARY KEY (locId)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 LOCK TABLES \`csvcity_location\` WRITE;
@@ -106,7 +109,7 @@ CREATE TABLE \`city_block\` (
     INDEX \`idx_start\` (\`start\`),
     INDEX \`idx_end\` (\`end\`),
     INDEX \`idx_geo\` (\`index_geo\`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 LOCK TABLES \`city_block\` WRITE;
@@ -122,7 +125,7 @@ CREATE TABLE \`csvcity_block\` (
 		\`endIpNum\` int(10) unsigned NOT NULL,
 		\`city_location_id\` int(10) unsigned NOT NULL,
 		PRIMARY KEY (endIpNum)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 LOCK TABLES \`csvcity_block\` WRITE;
@@ -134,12 +137,12 @@ DROP TABLE IF EXISTS \`country\`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE \`country\` (
-  \`id\` bigint(20) NOT NULL AUTO_INCREMENT,
-  \`version\` bigint(20) NOT NULL,
+  \`id\` int(10) NOT NULL AUTO_INCREMENT,
+  \`version\` int(10) NOT NULL,
   \`country_code\` varchar(2) NOT NULL,
   \`country_name\` varchar(50) NOT NULL,
   PRIMARY KEY (\`id\`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 LOCK TABLES \`country\` WRITE;
@@ -151,30 +154,28 @@ DROP TABLE IF EXISTS \`ip\`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE \`ip\` (
-  \`id\` bigint(20) NOT NULL AUTO_INCREMENT,
-  \`version\` bigint(20) NOT NULL,
-  \`country_id\` bigint(20) NOT NULL,
-  \`end\` int(10) unsigned NOT NULL,
+  \`id\` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  \`polygon\` polygon NOT NULL,
+  \`country_id\` int(10) NOT NULL,
   \`start\` int(10) unsigned NOT NULL,
+  \`end\` int(10) unsigned NOT NULL,
   PRIMARY KEY (\`id\`),
-  KEY \`FKD27A56A5EC7\` (\`country_id\`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+  SPATIAL KEY \`polygon\` (\`polygon\`)
+) ENGINE=MyISAM AUTO_INCREMENT=140247 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 LOCK TABLES \`ip\` WRITE;
 /*!40000 ALTER TABLE \`ip\` DISABLE KEYS */;
 /*!40000 ALTER TABLE \`ip\` ENABLE KEYS */;
 UNLOCK TABLES;
+
 LOAD DATA LOCAL INFILE '$CSVCOUNTRY'
 		INTO TABLE $DB.csvcountry
 		FIELDS TERMINATED BY ','
 		OPTIONALLY ENCLOSED BY '\"'
 		LINES TERMINATED BY '\n';
-DELETE FROM country;
 INSERT INTO country SELECT DISTINCT NULL,NULL,cc,cn FROM csvcountry;
-DELETE FROM ip;
-INSERT INTO ip select NULL, NULL, t2.id, t1.end, t1.start from csvcountry t1 join country t2 on t1.cc = t2.country_code;
-DROP TABLE csvcountry;
+INSERT INTO ip SELECT NULL, GEOMFROMWKB(POLYGON(LINESTRING(POINT(t1.start, -1),POINT(t1.end, -1),POINT(t1.end, 1),POINT(t1.start, 1),POINT(t1.start, -1)))), t2.id, t1.start, t1.end FROM csvcountry t1 JOIN country t2 ON t1.cc = t2.country_code;
 LOAD DATA LOCAL INFILE '$CSVBLOCK'
 		INTO TABLE $DB.csvcity_block
 		FIELDS TERMINATED BY ','
@@ -194,10 +195,11 @@ INSERT INTO city_location SELECT t1.locId, t2.id, t1.region, t1.city, t1.postalC
        FROM csvcity_location t1
        JOIN country t2 ON t1.country = t2.country_code;
 DROP TABLE csvcity_location;
+DROP TABLE csvcountry;
 EOF
 }
 
-GETOPT_ARGS=$(getopt -n geotool_populate_db.sh -o "u:p:b:l:c:" -- "$@")
+GETOPT_ARGS=$(getopt -n geotool_populate_db.sh -o "u:p:b:l:c:h" -- "$@")
 
 if [ "$?" -ne 0 ]; then
   usage
@@ -212,6 +214,7 @@ else
       -b) export CSVBLOCK=$2; shift 2;;
       -l) export CSVLOCATION=$2; shift 2;;
       -c) export CSVCOUNTRY=$2; shift 2;;
+      -h) usage; exit;;
       --) shift; break;;
       *) usage; break;;
     esac
