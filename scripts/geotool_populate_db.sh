@@ -178,9 +178,11 @@ Create TABLE \`asn_ipv4\` (
   \`polygon\` polygon NOT NULL,
   \`start\` int(10) unsigned NOT NULL,
   \`end\` int(10) unsigned NOT NULL,
-  \`asn\` varchar(255) NOT NULL,
+  \`asn\` varchar(50) NOT NULL,
+  \`owner\` varchar(255) NOT NULL,
   PRIMARY KEY (\`id\`),
-  SPATIAL KEY \`polygon\` (\`polygon\`)
+  SPATIAL KEY \`polygon\` (\`polygon\`),
+  INDEX \`asn\` (\`asn\`)
 ) ENGINE=MyISAM AUTO_INCREMENT=140247 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -195,7 +197,7 @@ LOAD DATA LOCAL INFILE '$CSVASNIPV4'
 		OPTIONALLY ENCLOSED BY '\"'
 		LINES TERMINATED BY '\n'
     (@var1, @var2, @var3)
-    SET polygon = GEOMFROMWKB(POLYGON(LINESTRING(POINT(@var1, -1),POINT(@var2, -1),POINT(@var2, 1),POINT(@var1, 1),POINT(@var1, -1)))), start = @var1, end = @var2, asn = @var3;
+    SET polygon = GEOMFROMWKB(POLYGON(LINESTRING(POINT(@var1, -1),POINT(@var2, -1),POINT(@var2, 1),POINT(@var1, 1),POINT(@var1, -1)))), start = @var1, end = @var2, asn = TRIM(SUBSTRING_INDEX(@var3, ' ', 1)), owner = TRIM(SUBSTRING(@var3, instr(@var3, ' ')));
 
 Load DATA LOCAL INFILE '$CSVCOUNTRY'
 		INTO TABLE $DB.csvcountry
