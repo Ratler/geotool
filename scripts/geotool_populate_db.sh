@@ -8,9 +8,10 @@
 usage() {
   cat <<EOF
 
-Usage: geotool_populate_db.sh [options] -b <file> -l <file> -c <file> <database>
+Usage: geotool_populate_db.sh [options] -a <file> -b <file> -l <file> -c <file> <database>
 
 Required options:
+ -a </path/to/GeoIPASNum2.csv>            Path to GeoIPASNum2 IPV4 CSV file
  -b </path/to/GeoLiteCity-Blocks.csv>     Path to GeoLiteCity-Blocks CSV file
  -l </path/to/GeoLiteCity-Location.csv>   Path to GeoLiteCity-Location CSV file
  -c </path/to/GeoIPCountryWhois.csv>      Path to GeoIPCountryWhois CSV file
@@ -169,7 +170,34 @@ LOCK TABLES \`ip\` WRITE;
 /*!40000 ALTER TABLE \`ip\` ENABLE KEYS */;
 UNLOCK TABLES;
 
-LOAD DATA LOCAL INFILE '$CSVCOUNTRY'
+DROP TABLE IF EXISTS \`asn_ipv4\`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+Create TABLE \`asn_ipv4\` (
+  \`id\` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  \`polygon\` polygon NOT NULL,
+  \`start\` int(10) unsigned NOT NULL,
+  \`end\` int(10) unsigned NOT NULL,
+  \`asn\` varchar(255) NOT NULL,
+  PRIMARY KEY (\`id\`),
+  SPATIAL KEY \`polygon\` (\`polygon\`)
+) ENGINE=MyISAM AUTO_INCREMENT=140247 DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+LOCK TABLES \`asn_ipv4\` WRITE;
+/*!40000 ALTER TABLE \`asn_ipv4\` DISABLE KEYS */;
+/*!40000 ALTER TABLE \`asn_ipv4\` ENABLE KEYS */;
+UNLOCK TABLES;
+
+LOAD DATA LOCAL INFILE '$CSVASNIPV4'
+		INTO TABLE $DB.asn_ipv4
+		FIELDS TERMINATED BY ','
+		OPTIONALLY ENCLOSED BY '\"'
+		LINES TERMINATED BY '\n'
+    (@var1, @var2, @var3)
+    SET polygon = GEOMFROMWKB(POLYGON(LINESTRING(POINT(@var1, -1),POINT(@var2, -1),POINT(@var2, 1),POINT(@var1, 1),POINT(@var1, -1)))), start = @var1, end = @var2, asn = @var3;
+
+Load DATA LOCAL INFILE '$CSVCOUNTRY'
 		INTO TABLE $DB.csvcountry
 		FIELDS TERMINATED BY ','
 		OPTIONALLY ENCLOSED BY '\"'
@@ -199,7 +227,7 @@ DROP TABLE csvcountry;
 EOF
 }
 
-GETOPT_ARGS=$(getopt -n geotool_populate_db.sh -o "u:p:b:l:c:h" -- "$@")
+GETOPT_ARGS=$(getopt -n geotool_populate_db.sh -o "a:u:p:b:l:c:h" -- "$@")
 
 if [ "$?" -ne 0 ]; then
   usage
@@ -211,6 +239,7 @@ else
     case "$1" in
       -u) MYSQLOPTS+=" -u $2"; shift 2;;
       -p) MYSQLOPTS+=" -p$2"; shift 2;;
+      -a) export CSVASNIPV4=$2; shift 2;;
       -b) export CSVBLOCK=$2; shift 2;;
       -l) export CSVLOCATION=$2; shift 2;;
       -c) export CSVCOUNTRY=$2; shift 2;;
@@ -224,6 +253,12 @@ else
 
   if [ -z "$1" ]; then
     echo "Error: Missing argument <database>"
+    usage
+    exit 1
+  fi
+
+  if [[ -z "$CSVASNIPV4" || ! -f "$CSVASNIPV4" ]]; then
+    echo "Error: Missing GeoIPASNum2 IPV4 option or file not found!"
     usage
     exit 1
   fi
