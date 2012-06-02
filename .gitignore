@@ -2,4 +2,4 @@
 target/*
 web-app/WEB-INF/tld/*
 stacktrace.log
-
+.idea
